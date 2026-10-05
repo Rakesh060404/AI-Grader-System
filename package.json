@@ -11,7 +11,9 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "db:migrate": "npm run migrate --workspace=@ai-grader/shared"
+    "db:migrate": "npm run migrate --workspace=@ai-grader/shared",
+    "kafka:create-topics": "npm run create-topics --workspace=@ai-grader/shared",
+    "test": "npm test --workspace=@ai-grader/shared && npm test --workspace=@ai-grader/upload && npm test --workspace=@ai-grader/grader"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

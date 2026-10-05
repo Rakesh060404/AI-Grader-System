@@ -139,7 +139,7 @@ CREATE TABLE grades (
 ### Outbox and consumer rules
 
 - In a single database transaction, insert the `submissions` row and its `outbox` row.
-- Claim pending outbox rows in a transaction using `FOR UPDATE SKIP LOCKED`; commit the claim before network I/O if using a lease/claim field, or hold locks only for a short, bounded operation. Do not hold a database transaction open during an unbounded Kafka call.
+- Claim pending outbox rows in a short transaction using `FOR UPDATE SKIP LOCKED` and a `claimed_until` lease; commit the claim before Kafka network I/O. Expired claims become eligible for retry after a process crash.
 - Record publication only after Kafka acknowledges the event. If publication succeeds but recording fails, allow a duplicate event on retry.
 - Include a stable event ID, submission ID, event type, and schema version in each event. Do not include PDF bytes, credentials, or unnecessary personal data.
 - Commit the Kafka consumer offset only after the grade is durably stored (or the event is explicitly classified as permanently invalid). Retry transient failures; make poison-event handling observable.
@@ -151,8 +151,8 @@ Exact routes and payloads must be recorded in `docs/API.md` when the API is impl
 
 | Operation | Purpose | Expected result |
 |---|---|---|
-| Request upload | Create/authorize a submission and obtain a short-lived presigned URL. | Submission ID and upload URL. |
-| Complete upload | Confirm uploaded object and persist submission plus outbox event. | Accepted submission with a grading status. |
+| Request upload | Create an upload intent and obtain a short-lived presigned URL. | Upload-intent ID and upload URL. |
+| Complete upload | Confirm ownership, expiry, size, content type, and PDF signature. | Validated upload intent; submission and outbox persistence follow in step 9. |
 | Get result | Return the caller-authorized submission status and, when ready, score and feedback. | Status and optional grade. |
 
 All externally supplied identifiers and payloads require validation and authorization. Presigned URLs are bearer capabilities: keep their lifetime short and do not log them.

@@ -14,9 +14,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "migrate": "npm run build && node --env-file-if-exists=../../.env dist/migrate.js"
+    "migrate": "npm run build && node --env-file-if-exists=../../.env dist/migrate.js",
+    "create-topics": "npm run build && node --env-file-if-exists=../../.env dist/createTopics.js",
+    "test": "npm run build && node --env-file-if-exists=../../.env --test test/auth.test.mjs"
   },
   "dependencies": {
+    "jose": "^6.2.12",
+    "kafkajs": "^2.2.4",
     "pg": "^8.16.0",
     "zod": "^3.25.76"
   },

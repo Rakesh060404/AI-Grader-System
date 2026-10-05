@@ -29,8 +29,20 @@ const gradingEnvironmentSchema = z.object({
   OPENROUTER_MODEL: z.string().trim().min(1)
 });
 
+const storageEnvironmentSchema = z.object({
+  MINIO_ROOT_USER: z.string().min(1),
+  MINIO_ROOT_PASSWORD: z.string().min(1)
+});
+
+const graderEnvironmentSchema = z.object({
+  GRADING_RUBRIC: z.string().trim().min(1),
+  GRADER_GROUP_ID: z.string().trim().min(1).default("ai-grader-grader-v1")
+});
+
 export type AppConfig = z.infer<typeof environmentSchema>;
 export type GradingConfig = z.infer<typeof gradingEnvironmentSchema>;
+export type StorageConfig = z.infer<typeof storageEnvironmentSchema>;
+export type GraderServiceConfig = z.infer<typeof graderEnvironmentSchema>;
 
 export function loadDatabaseUrl(environment: NodeJS.ProcessEnv = process.env): string {
   const result = databaseUrlSchema.safeParse(environment.DATABASE_URL);
@@ -63,6 +75,34 @@ export function loadGradingConfig(environment: NodeJS.ProcessEnv = process.env):
       .map((issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`)
       .join("; ");
     throw new Error(`Invalid grading configuration: ${details}`);
+  }
+
+  return result.data;
+}
+
+export function loadStorageConfig(environment: NodeJS.ProcessEnv = process.env): StorageConfig {
+  const result = storageEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`Invalid storage configuration: ${details}`);
+  }
+
+  return result.data;
+}
+
+export function loadGraderServiceConfig(
+  environment: NodeJS.ProcessEnv = process.env
+): GraderServiceConfig {
+  const result = graderEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`Invalid grader service configuration: ${details}`);
   }
 
   return result.data;

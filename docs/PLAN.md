@@ -14,29 +14,29 @@ Build the steps in order. Each step has a completion check; do not move on to th
 
 ## Stage C: Auth and uploads
 
-- [ ] **5. Auth.** Add register, login, and refresh endpoints in the gateway, password hashing with bcrypt or argon2, and JWT access/refresh tokens. **Done when:** register, login, and refresh work with curl.
-- [ ] **6. JWT verification in shared.** Add reusable token verification middleware that attaches the user ID. **Done when:** a protected test route returns 401 without a token and 200 with one.
-- [ ] **7. Presign endpoint.** Add `POST /uploads/presign` in the upload service. It creates an `upload_intents` row and returns a presigned MinIO PUT URL with a file-size limit and PDF content type. **Done when:** a PDF can be PUT to the returned URL and appears in the bucket.
-- [ ] **8. Complete endpoint.** Add `POST /uploads/:id/complete`; verify intent ownership, object existence, size, and `%PDF-` file signature. **Done when:** a valid PDF is accepted and a non-PDF renamed to `.pdf` is rejected.
+- [x] **5. Auth.** Add register, login, and refresh endpoints in the gateway, password hashing with bcrypt or argon2, and JWT access/refresh tokens. **Done when:** register, login, and refresh work with curl. Verified register/login/refresh over HTTP.
+- [x] **6. JWT verification in shared.** Add reusable token verification middleware that attaches the user ID. **Done when:** a protected test route returns 401 without a token and 200 with one. Verified 401 without a token, 200 with access token, and 401 when a refresh token is used as an access token.
+- [x] **7. Presign endpoint.** Add `POST /uploads/presign` in the upload service. It creates an `upload_intents` row and returns a presigned MinIO PUT URL with a file-size limit and PDF content type. **Done when:** a PDF can be PUT to the returned URL and appears in the bucket. Verified by uploading to MinIO during the local integration check.
+- [x] **8. Complete endpoint.** Add `POST /uploads/:id/complete`; verify intent ownership, object existence, size, and `%PDF-` file signature. **Done when:** a valid PDF is accepted and a non-PDF renamed to `.pdf` is rejected. Verified: valid-signature object accepted; non-PDF rejected with HTTP 400; unauthenticated presign rejected with HTTP 401.
 
 ## Stage D: The event-driven pipeline
 
-- [ ] **9. Transactional outbox.** In the complete handler, insert the submission and outbox event in one database transaction. **Done when:** a forced failure after the submission insert leaves neither row committed.
-- [ ] **10. Kafka setup in shared.** Add producer/consumer factories, topic names, and a Redpanda topic-creation script. **Done when:** a test message flows from producer to consumer.
-- [ ] **11. Outbox publisher.** Add an upload-service background loop that claims unsent rows with `FOR UPDATE SKIP LOCKED`, publishes them to Kafka, and marks them sent. **Done when:** completion publishes an event, and an event remains deliverable after Kafka is stopped for a minute and restarted.
-- [ ] **12. Grader service.** Consume submission events, fetch each PDF from S3, call `gradePdf`, and persist results in `grades`. **Done when:** completing an upload leads to a grade row without manual steps.
-- [ ] **13. Idempotency, statuses, and failure handling.** Skip submissions already `done`; transition through `pending`, `grading`, `done`, and `failed`; add bounded retries and persist a failure reason. **Done when:** duplicate messages create one grade and a bad PDF ends in `failed` with a reason.
-- [ ] **14. Results service.** Add `GET /results` for the user's submissions and `GET /results/:id`, scoped to the JWT user. **Done when:** polling works and a second user receives 404 or 403 for another user's result.
-- [ ] **15. Gateway proxy.** Route `/auth`, `/uploads`, and `/results` to the responsible services. Verify JWTs at the gateway and again in downstream services. **Done when:** the full flow works through the gateway and direct unauthenticated service calls fail.
+- [x] **9. Transactional outbox.** In the complete handler, insert the submission and outbox event in one database transaction. **Done when:** a forced failure after the submission insert leaves neither row committed. Verified by an integration test that forces an error after both inserts and confirms both records roll back.
+- [x] **10. Kafka setup in shared.** Add producer/consumer factories, topic names, and a Redpanda topic-creation script. **Done when:** a test message flows from producer to consumer. Verified using local Redpanda.
+- [x] **11. Outbox publisher.** Add an upload-service background loop that claims unsent rows with `FOR UPDATE SKIP LOCKED`, publishes them to Kafka, and marks them sent. **Done when:** completion publishes an event, and an event remains deliverable after Kafka is stopped for a minute and restarted. Verified an upload event remained unsent during a 60-second Redpanda stop and was published and consumed after broker recovery.
+- [ ] **12. Grader service.** Consume submission events, fetch each PDF from S3, call `gradePdf`, and persist results in `grades`. **Done when:** completing an upload leads to a grade row without manual steps. Worker and mocked processing tests are implemented; live OpenRouter grading still requires a valid local API key/model, a rubric, and sample answer sheets.
+- [x] **13. Idempotency, statuses, and failure handling.** Skip submissions already `done`; transition through `pending`, `grading`, `done`, and `failed`; add bounded retries and persist a failure reason. **Done when:** duplicate messages create one grade and a bad PDF ends in `failed` with a reason. Verified one grade for duplicate events, three bounded attempts, and failed status/reason for invalid PDF bytes.
+- [x] **14. Results service.** Add `GET /results` for the user's submissions and `GET /results/:id`, scoped to the JWT user. **Done when:** polling works and a second user receives 404 or 403 for another user's result. Verified via gateway list/detail and cross-user 404.
+- [x] **15. Gateway proxy.** Route `/auth`, `/uploads`, and `/results` to the responsible services. Verify JWTs at the gateway and again in downstream services. **Done when:** the full flow works through the gateway and direct unauthenticated service calls fail. Verified upload completion and result retrieval through the gateway; unauthenticated direct upload call returned 401.
 
 ### End-to-end checkpoint
 
-- [ ] Register, log in, presign, upload, complete, wait for grading, and fetch the grade. This must work before starting Stage E.
+- [ ] Register, log in, presign, upload, complete, wait for grading, and fetch the grade. Auth/upload/outbox/results are verified; the full grade-to-result path awaits live OpenRouter configuration and real sample PDFs. This must work before starting Stage E.
 
 ## Stage E: Make it production-like
 
 - [ ] **16. Dockerize the services.** Add a multi-stage Dockerfile per service and include services in Compose. **Done when:** `docker compose up` on a clean machine runs the whole system.
-- [ ] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes.
+- [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. Integration tests cover outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid PDF failure.
 - [ ] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, and tests. **Done when:** it passes on the main branch.
 - [ ] **19. Documentation.** Complete the README with a Mermaid architecture diagram, setup instructions, API list, design decisions (outbox, Kafka, presigned uploads), and known limitations. **Done when:** another developer can run the project from the README alone.
 - [ ] **20. Demo and placement material.** Record a 1–2 minute demo, write resume bullets, and prepare interview answers on outbox, idempotency, and presigned uploads.
