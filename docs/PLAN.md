@@ -8,19 +8,19 @@ Build the steps in order. Each step has a completion check; do not move on to th
   end-to-end on 2026-10-08, including both de-identified sample PDFs.
 - This continuation re-ran the workspace build and type-check, the shared JWT
   tests, and all four Gemini provider tests successfully.
-- GitHub Actions run [#3](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38771554805)
+- GitHub Actions run [#4](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38773567811)
   passed on `main`: dependency install, build, type-check, migrations, and the
   full test suite all succeeded. The initial run exposed a workspace build
   ordering issue; the workflow was corrected to build before type-check.
 - A separate Compose project with new database and storage volumes successfully
   ran all three migrations, created its Kafka topic, and brought all APIs
-  healthy. Its live grading request failed with Gemini HTTP 401. The host
-  model-list endpoint now also returns 401, although it accepted the key during
-  the 2026-10-08 verification.
-- The local `.env` contains a configured key, but Google currently rejects it;
-  `GEMINI_MODEL` and `GRADING_RUBRIC` are missing from that file. The model and
-  sample rubric were passed to Compose only for the test run; no API key or
-  rubric was written to tracked files.
+  healthy. The user reports refreshing the Gemini key, but the subsequent live
+  grading attempt could not verify it: the grader container restarted because
+  `GRADING_RUBRIC` was empty. The request remained pending and no grade was
+  produced.
+- A presence-only check confirmed `GEMINI_API_KEY` is set in local `.env`;
+  `GEMINI_MODEL` and `GRADING_RUBRIC` are missing. The key value was not read
+  into output, and no credentials or rubric were written to tracked files.
 
 ## Stage A: Foundation
 
@@ -55,7 +55,7 @@ Build the steps in order. Each step has a completion check; do not move on to th
 
 ## Stage E: Make it production-like
 
-- [x] **16. Dockerize the services.** Add multi-stage Dockerfiles for each service and shared migration/topic setup and include them in Compose. Verified fresh-volume startup on 2026-10-15: all migrations applied, Kafka topic setup completed, API health checks passed, and app containers ran as non-root. The separate test volumes were removed; existing project volumes were preserved and the normal stack was restored. Live grading in the fresh project failed because Google currently returns HTTP 401 for the local key; the full Dockerized grading flow passed on 2026-10-08 with a valid key.
+- [x] **16. Dockerize the services.** Add multi-stage Dockerfiles for each service and shared migration/topic setup and include them in Compose. Verified fresh-volume startup on 2026-10-15: all migrations applied, Kafka topic setup completed, API health checks passed, and app containers ran as non-root. The separate test volumes were removed; existing project volumes were preserved and the normal stack was restored. The full Dockerized grading flow passed on 2026-10-08 with a valid key. The latest live retry did not reach Gemini because the grader's required rubric setting was empty.
 - [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. GitHub Actions run #2 passed the full test suite, including outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid PDF failure.
 - [x] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, migration, and tests. Workflow at `.github/workflows/ci.yml` passed on `main` in [run #3](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38771554805). The first run found and exposed a build-order issue; the workflow now builds workspace declarations before type-checking dependent services.
 - [x] **19. Documentation.** Complete the README with a Mermaid architecture diagram, setup instructions, API list, design decisions (outbox, Kafka, presigned uploads), and known limitations. Add the demo and interview notes. **Done when:** another developer can run the project from the README alone.
@@ -64,9 +64,10 @@ Build the steps in order. Each step has a completion check; do not move on to th
 ## Next actions
 
 1. Replace or refresh the Gemini API key in `.env` and verify Google accepts
-   it; keep credentials private.
-2. Add `GEMINI_MODEL` and `GRADING_RUBRIC` to `.env`, then rerun live grading
-   and the full Dockerized sample flow.
+   it; keep credentials private. The user reports the key was refreshed, but
+   provider acceptance has not yet been verified.
+2. Add non-empty `GEMINI_MODEL` and `GRADING_RUBRIC` values to `.env`, then
+   restart the grader and rerun live grading and the full Dockerized sample flow.
 3. Record the short demo using de-identified sample data.
 
 ## If time runs short
