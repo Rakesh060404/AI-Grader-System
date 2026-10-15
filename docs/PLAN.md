@@ -10,9 +10,10 @@ Build the steps in order. Each step has a completion check; do not move on to th
   tests, and all four Gemini provider tests successfully.
 - The full DB-backed test suite and Docker stack could not be re-run in this
   continuation because the Docker engine is currently unavailable.
-- The CI workflow is now published to GitHub. Its first run failed because
-  type-check ran before the shared workspace declarations were built. The
-  workflow now builds first; the rerun must pass before CI is complete.
+- GitHub Actions run [#2](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38771246603)
+  passed on `main`: dependency install, build, type-check, migrations, and the
+  full test suite all succeeded. The initial run exposed a workspace build
+  ordering issue; the workflow was corrected to build before type-check.
 - The user's local `.env` has a Gemini key, but the model and grading rubric
   are not configured there. The previous end-to-end test used temporary
   process-level settings; no API key or rubric was written to tracked files.
@@ -51,8 +52,8 @@ Build the steps in order. Each step has a completion check; do not move on to th
 ## Stage E: Make it production-like
 
 - [ ] **16. Dockerize the services.** Add multi-stage Dockerfiles for each service and shared migration/topic setup and include them in Compose. Images built; Compose migrations/topic setup, health checks, non-root API containers, and the Dockerized upload-to-Gemini-to-results flow were verified on 2026-10-08. The acceptance check specifically says a clean machine; a fresh-volume startup was not attempted, and existing local data volumes were deliberately preserved. The Docker engine is currently unavailable, so this final clean-environment check remains.
-- [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. Integration tests cover outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid PDF failure.
-- [ ] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, migration, and tests. Workflow is published at `.github/workflows/ci.yml`; local build and type-check pass, along with the shared JWT and Gemini provider tests. The first GitHub Actions run failed because workspace packages had not been built before downstream type-checks. The workflow order is fixed to build before type-check; verify the new run. DB-backed tests passed previously, but could not be re-run locally now because Docker is unavailable. **Next:** confirm the fixed workflow run succeeds on `main`.
+- [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. GitHub Actions run #2 passed the full test suite, including outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid PDF failure.
+- [x] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, migration, and tests. Workflow at `.github/workflows/ci.yml` passed on `main` in [run #2](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38771246603). The first run found and exposed a build-order issue; the workflow now builds workspace declarations before type-checking dependent services.
 - [x] **19. Documentation.** Complete the README with a Mermaid architecture diagram, setup instructions, API list, design decisions (outbox, Kafka, presigned uploads), and known limitations. Add the demo and interview notes. **Done when:** another developer can run the project from the README alone.
 - [ ] **20. Demo and placement material.** Record a 1–2 minute demo, write resume bullets, and prepare interview answers on outbox, idempotency, and presigned uploads. A recording outline, resume bullet drafts, and interview notes are ready in `docs/DEMO.md`. **Remaining:** record the demo and tailor resume bullets with the user's actual experience and measured results.
 
@@ -62,8 +63,7 @@ Build the steps in order. Each step has a completion check; do not move on to th
    credentials private).
 2. When Docker is available, verify Compose startup from a fresh, isolated
    project/volume so existing local data is not deleted.
-3. Confirm the fixed GitHub Actions workflow run is green on `main`.
-4. Record the short demo using de-identified sample data.
+3. Record the short demo using de-identified sample data.
 
 ## If time runs short
 
