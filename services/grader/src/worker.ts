@@ -68,7 +68,7 @@ async function start(): Promise<void> {
       await processSubmission(database, parsed.data, {
         s3,
         bucket: config.S3_BUCKET,
-        model: gradingConfig.OPENROUTER_MODEL,
+        model: gradingConfig.GEMINI_MODEL,
         rubric: graderConfig.GRADING_RUBRIC
       });
     }

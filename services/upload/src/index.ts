@@ -30,7 +30,8 @@ const UPLOAD_URL_TTL_SECONDS = 15 * 60;
 const uploadRuntimeSchema = z.object({
   MINIO_ROOT_USER: z.string().min(1),
   MINIO_ROOT_PASSWORD: z.string().min(1),
-  UPLOAD_PORT: z.coerce.number().int().min(1).max(65535).default(3001)
+  UPLOAD_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  S3_PRESIGN_ENDPOINT: z.string().url().optional()
 });
 
 const presignBodySchema = z.object({
@@ -56,15 +57,22 @@ const runtime = uploadRuntimeSchema.parse(process.env);
 const database = createDatabasePool(config.DATABASE_URL);
 const kafkaProducer = createKafkaProducer(config.KAFKA_BROKERS, "ai-grader-upload");
 const publisherAbortController = new AbortController();
-const s3 = new S3Client({
-  endpoint: config.S3_ENDPOINT,
-  region: "us-east-1",
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: runtime.MINIO_ROOT_USER,
-    secretAccessKey: runtime.MINIO_ROOT_PASSWORD
-  }
-});
+function createStorageClient(endpoint: string): S3Client {
+  return new S3Client({
+    endpoint,
+    region: "us-east-1",
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: runtime.MINIO_ROOT_USER,
+      secretAccessKey: runtime.MINIO_ROOT_PASSWORD
+    }
+  });
+}
+
+const s3 = createStorageClient(config.S3_ENDPOINT);
+const presignS3 = runtime.S3_PRESIGN_ENDPOINT
+  ? createStorageClient(runtime.S3_PRESIGN_ENDPOINT)
+  : s3;
 let publisherTask: Promise<void> | undefined;
 
 function getUserId(request: FastifyRequest, reply: FastifyReply): string | null {
@@ -135,7 +143,7 @@ app.post(
 
     try {
       const uploadUrl = await getSignedUrl(
-        s3,
+        presignS3,
         new PutObjectCommand({
           Bucket: config.S3_BUCKET,
           Key: objectKey,
@@ -308,6 +316,9 @@ try {
   });
   await database.end();
   s3.destroy();
+  if (presignS3 !== s3) {
+    presignS3.destroy();
+  }
   process.exitCode = 1;
 }
 
@@ -317,6 +328,9 @@ async function shutdown(): Promise<void> {
   await publisherTask;
   await database.end();
   s3.destroy();
+  if (presignS3 !== s3) {
+    presignS3.destroy();
+  }
 }
 
 process.once("SIGINT", () => {

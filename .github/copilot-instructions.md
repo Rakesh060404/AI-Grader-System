@@ -20,7 +20,7 @@ See [docs/PLAN.md](../docs/PLAN.md) for the implementation checklist.
 - Kafka-compatible event transport using Redpanda and `kafkajs`.
 - S3-compatible object storage using MinIO locally and `@aws-sdk/client-s3`.
 - JWT handling with `jose`.
-- Vision-capable grading model accessed through OpenRouter.
+- Vision-capable grading model accessed through the Gemini API.
 
 Treat this stack as the project direction; do not assume that a dependency or service is already configured until it appears in the repository.
 

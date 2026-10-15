@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: grader
+          POSTGRES_PASSWORD: grader_ci_only
+          POSTGRES_DB: grader
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grader -d grader"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://grader:grader_ci_only@localhost:5432/grader
+      KAFKA_BROKERS: localhost:19092
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: ai-grader-ci
+      JWT_SECRET: github-actions-test-secret-not-used-outside-ci
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Apply database migrations
+        run: npm run db:migrate
+
+      - name: Test
+        run: npm test

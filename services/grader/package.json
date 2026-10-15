@@ -14,7 +14,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node --env-file-if-exists=../../.env dist/worker.js",
-    "test": "npm run build --workspace=@ai-grader/shared && npm run build && node --env-file-if-exists=../../.env --test test/gradeProcessing.test.mjs"
+    "test": "npm run build --workspace=@ai-grader/shared && npm run build && node --env-file-if-exists=../../.env --test test/*.test.mjs"
   },
   "dependencies": {
     "@ai-grader/shared": "^1.0.0",

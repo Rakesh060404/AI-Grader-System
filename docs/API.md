@@ -61,6 +61,9 @@ Returns an opaque object key, upload-intent ID, a presigned MinIO PUT URL that
 expires after 15 minutes, the required `Content-Type` header, and the 10 MiB
 maximum accepted file size. Upload the PDF bytes directly to the returned URL
 using `PUT` and the returned headers; do not send the bearer token to MinIO.
+The URL's host must be reachable by the client. When running services in
+Docker, configure `S3_ENDPOINT` for service-to-service access and
+`S3_PRESIGN_ENDPOINT` for the client-facing MinIO address.
 
 The service checks actual object size during completion. A presigned S3 PUT
 does not impose a content-length range, so an oversized object may be transferred

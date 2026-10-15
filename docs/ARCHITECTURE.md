@@ -6,9 +6,10 @@ This document describes the intended first implementation of an event-driven exa
 
 - Clients authenticate with a JWT and submit exam PDFs.
 - The upload service issues short-lived S3 presigned upload URLs. PDF bytes go directly from the client to object storage.
+- The upload service can use a separate client-facing presign endpoint so URLs created inside Docker remain reachable from the host or browser.
 - Completing an upload records the submission and a `submission.completed` outbox event in one PostgreSQL transaction.
 - An outbox publisher forwards pending events to Kafka (Redpanda in local development).
-- The grader consumes events, retrieves the PDF, calls a vision-capable model through OpenRouter, validates the result, and stores a grade.
+- The grader consumes events, retrieves the PDF, calls a vision-capable Gemini model through the Google AI Studio API, validates the result, and stores a grade.
 - The results service returns grades only to an authorized caller.
 - MinIO is the local S3-compatible store. Production provider and deployment choices remain configurable.
 
@@ -25,7 +26,7 @@ This document describes the intended first implementation of an event-driven exa
 | Results service | Authenticates and authorizes result lookups and returns persisted score and feedback. |
 | PostgreSQL | Stores submissions, outbox events, and grades. |
 | S3-compatible storage | Stores uploaded PDFs; only object keys, not document contents, belong in the relational database. |
-| OpenRouter | Routes the grader's request to the vision-capable model configured by `OPENROUTER_MODEL`; the model name and API key are environment configuration, not source-code constants. |
+| Google AI Studio / Gemini API | Processes the grading request with the vision-capable model configured by `GEMINI_MODEL`; the model name and API key are environment configuration, not source-code constants. |
 
 ## Submission-to-results flow
 
@@ -40,7 +41,7 @@ sequenceDiagram
     participant Outbox as Outbox publisher
     participant Kafka as Kafka / Redpanda
     participant Grader
-    participant Model as OpenRouter vision model
+    participant Model as Gemini vision model
     participant Results as Results service
 
     Client->>Gateway: Request presigned upload URL (JWT)

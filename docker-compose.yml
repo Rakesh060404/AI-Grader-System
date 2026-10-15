@@ -1,3 +1,16 @@
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql://${POSTGRES_USER:-grader}:${POSTGRES_PASSWORD:-grader_dev_only}@postgres:5432/${POSTGRES_DB:-grader}
+  KAFKA_BROKERS: redpanda:9092
+  S3_ENDPOINT: http://minio:9000
+  S3_BUCKET: ${S3_BUCKET:-ai-grader-submissions}
+  JWT_SECRET: ${JWT_SECRET:-local-only-change-this-to-a-random-secret}
+
+x-shared-image: &shared-image
+  image: ai-grader-shared:local
+  build:
+    context: .
+    dockerfile: packages/shared/Dockerfile
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -85,6 +98,143 @@ services:
         echo "MinIO did not become available for bucket initialization" >&2;
         exit 1
     restart: "no"
+
+  migrate:
+    <<: *shared-image
+    environment:
+      <<: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  kafka-topics:
+    <<: *shared-image
+    command: ["node", "packages/shared/dist/createTopics.js"]
+    environment:
+      <<: *app-environment
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: "no"
+
+  gateway:
+    image: ai-grader-gateway:local
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    environment:
+      <<: *app-environment
+      GATEWAY_PORT: 3000
+      UPLOAD_SERVICE_URL: http://upload:3001
+      RESULTS_SERVICE_URL: http://results:3003
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      upload:
+        condition: service_healthy
+      results:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  upload:
+    image: ai-grader-upload:local
+    build:
+      context: .
+      dockerfile: services/upload/Dockerfile
+    environment:
+      <<: *app-environment
+      UPLOAD_PORT: 3001
+      S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT:-http://localhost:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_dev_only}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+      kafka-topics:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  results:
+    image: ai-grader-results:local
+    build:
+      context: .
+      dockerfile: services/results/Dockerfile
+    environment:
+      <<: *app-environment
+      RESULTS_PORT: 3003
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  grader:
+    image: ai-grader-grader:local
+    build:
+      context: .
+      dockerfile: services/grader/Dockerfile
+    environment:
+      <<: *app-environment
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_dev_only}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GRADING_RUBRIC: ${GRADING_RUBRIC:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+      kafka-topics:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   postgres-data:

@@ -20,13 +20,12 @@ export const environmentSchema = z.object({
     .min(3)
     .max(63)
     .regex(/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/),
-  JWT_SECRET: z.string().min(32),
-  OPENROUTER_API_KEY: z.string().min(1)
+  JWT_SECRET: z.string().min(32)
 });
 
 const gradingEnvironmentSchema = z.object({
-  OPENROUTER_API_KEY: z.string().min(1),
-  OPENROUTER_MODEL: z.string().trim().min(1)
+  GEMINI_API_KEY: z.string().trim().min(1),
+  GEMINI_MODEL: z.string().trim().min(1)
 });
 
 const storageEnvironmentSchema = z.object({
