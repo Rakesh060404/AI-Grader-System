@@ -45,11 +45,11 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
 
-      - name: Type-check
-        run: npm run typecheck
-
       - name: Build
         run: npm run build
+
+      - name: Type-check
+        run: npm run typecheck
 
       - name: Apply database migrations
         run: npm run db:migrate
