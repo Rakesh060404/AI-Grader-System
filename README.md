@@ -94,7 +94,7 @@ sample rubric can be supplied to Compose without putting its contents in source
 control:
 
 ```powershell
-$env:GEMINI_MODEL = "gemini-2.5-flash"
+$env:GEMINI_MODEL = "gemini-3.5-flash-lite"
 $env:GRADING_RUBRIC = Get-Content samples\rubric.md -Raw
 docker compose up -d --build
 ```
@@ -102,10 +102,9 @@ docker compose up -d --build
 ## Run the full system in Docker
 
 Set `GEMINI_API_KEY`, `GEMINI_MODEL`, and `GRADING_RUBRIC` in `.env` before
-starting the grader. `GEMINI_MODEL=gemini-2.5-flash` is the model used by the
-live local verification; model access and quotas depend on the Google AI Studio
-account. The rubric should describe the marking criteria and the expected
-maximum score.
+starting the grader. `GEMINI_MODEL=gemini-3.5-flash-lite` is the current example;
+model availability and quotas depend on the Google AI Studio account. The
+rubric should describe the marking criteria and the expected maximum score.
 
 Build and start PostgreSQL, Redpanda, MinIO, the one-shot migration/topic setup,
 and all four services:

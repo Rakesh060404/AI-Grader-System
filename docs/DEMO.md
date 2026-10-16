@@ -15,6 +15,13 @@
 Use only de-identified sample PDFs. Do not display API keys, JWTs, presigned
 URLs, or student-identifying information in a recording.
 
+## Verified sample run
+
+The Dockerized flow was verified on 2026-10-16 with `gemini-3.5-flash-lite`.
+Both de-identified sample PDFs completed through the gateway; their results
+were persisted and retrieved, with scores of 10/10 and 3/10. Use this run for
+the demo only if the samples and rubric are appropriate to show.
+
 ## Resume bullet drafts
 
 - Built a TypeScript/Fastify multi-service exam grading system with JWT

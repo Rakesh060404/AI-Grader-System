@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-10-16T16:25:00.000Z",
+  "generatedOnPlatform": "win32",
+  "projectType": "server",
+  "setup": [],
+  "assertions": [
+    {
+      "name": "workspace-build",
+      "kind": "process",
+      "command": "npm",
+      "args": ["run", "build"],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 300
+    },
+    {
+      "name": "workspace-typecheck",
+      "kind": "process",
+      "command": "npm",
+      "args": ["run", "typecheck"],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 300
+    },
+    {
+      "name": "tests-pass",
+      "kind": "process",
+      "command": "npm",
+      "args": ["test"],
+      "verificationMethod": "test-results",
+      "expected": "0",
+      "timeoutSeconds": 300
+    },
+    {
+      "name": "gateway-health-200",
+      "kind": "http-probe",
+      "startCommand": "npm",
+      "startArgs": ["run", "start", "--workspace=@ai-grader/gateway"],
+      "url": "http://localhost:3000/health",
+      "verificationMethod": "http-status",
+      "expected": "200",
+      "timeoutSeconds": 60
+    },
+    {
+      "name": "upload-health-200",
+      "kind": "http-probe",
+      "startCommand": "npm",
+      "startArgs": ["run", "start", "--workspace=@ai-grader/upload"],
+      "url": "http://localhost:3001/health",
+      "verificationMethod": "http-status",
+      "expected": "200",
+      "timeoutSeconds": 60
+    },
+    {
+      "name": "results-health-200",
+      "kind": "http-probe",
+      "startCommand": "npm",
+      "startArgs": ["run", "start", "--workspace=@ai-grader/results"],
+      "url": "http://localhost:3003/health",
+      "verificationMethod": "http-status",
+      "expected": "200",
+      "timeoutSeconds": 60
+    }
+  ]
+}

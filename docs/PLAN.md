@@ -2,28 +2,23 @@
 
 Build the steps in order. Each step has a completion check; do not move on to the next implementation step until it passes. Steps 1–3 establish the foundation, and step 4 is the main technical risk.
 
-## Current status (2026-10-15)
+## Current status (2026-10-16)
 
-- The Gemini grading path and Dockerized upload-to-results flow were verified
-  end-to-end on 2026-10-08, including both de-identified sample PDFs.
-- This continuation re-ran the workspace build and type-check, the shared JWT
-  tests, and all four Gemini provider tests successfully.
-- GitHub Actions run [#4](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38773567811)
-  passed on `main`: dependency install, build, type-check, migrations, and the
-  full test suite all succeeded. The initial run exposed a workspace build
-  ordering issue; the workflow was corrected to build before type-check.
-- A separate Compose project with new database and storage volumes successfully
-  ran all three migrations, created its Kafka topic, and brought all APIs
-  healthy. The refreshed local key successfully queried Google's model list
-  (HTTP 200). Google reports `gemini-2.5-flash` is no longer available to new
-  users and recommends `gemini-3.8-flash`.
-- Local `.env` now contains the selected `gemini-3.8-flash` model and an approved
-  generic 10-point sample rubric; the running grader confirms these settings
-  are present without exposing their values. Live grading remains blocked by
-  provider availability: the image request received HTTP 503 and then timed
-  out on retries, while a minimal request to `gemini-flash-latest` also timed
-  out. The sample submission ended in `failed` with the recorded timeout.
-- No credentials or rubric were written to tracked files.
+- The full Dockerized gateway-to-results flow now passes with
+  `gemini-3.5-flash-lite`: both de-identified sample PDFs were uploaded,
+  graded, persisted, and retrieved. The observed scores were 10/10 and 3/10.
+- The previous `gemini-2.5-flash` model is unavailable to new users and
+  `gemini-3.8-flash` returned HTTP 503 during high demand. A lightweight model
+  returned HTTP 200 and completed both full vision grading requests.
+- Fixed the local `.env` key name to `GEMINI_API_KEY` (preserving its value)
+  and added the missing host-run service URLs. The key and rubric remain local
+  and are not tracked.
+- Standalone runtime validation passed all six checks: workspace build,
+  type-check, tests, and gateway/upload/results health endpoints. The root test
+  script exited successfully; the validation runner could not parse aggregate
+  TAP counts from the nested workspace scripts.
+- GitHub Actions run [#6](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38777300134)
+  passed on `main`, including install, build, type-check, migrations, and tests.
 
 ## Stage A: Foundation
 
@@ -33,7 +28,7 @@ Build the steps in order. Each step has a completion check; do not move on to th
 
 ## Stage B: The grading core
 
-- [x] **4. Standalone grading script.** Implement a plain `gradePdf(path, rubric)` function using `pdf-to-img`: render PDF pages to PNG, send images and rubric to the configured Gemini vision model, validate `{ score, feedback }` with Zod, and retry once on invalid JSON. Keep it independent of Kafka and HTTP. **Done when:** it returns sensible scores for at least two real answer sheets. Verified both sample sheets against the 10-mark rubric: 10/10 and 2/10. The API key was accepted by Google and the model returned validated output.
+- [x] **4. Standalone grading script.** Implement a plain `gradePdf(path, rubric)` function using `pdf-to-img`: render PDF pages to PNG, send images and rubric to the configured Gemini vision model, validate `{ score, feedback }` with Zod, and retry once on invalid JSON. Keep it independent of Kafka and HTTP. **Done when:** it returns sensible scores for at least two real answer sheets. Verified both de-identified samples through the full gateway-to-results flow with the configured 10-mark rubric and `gemini-3.5-flash-lite`: scores 10/10 and 3/10, with grades persisted and returned.
 
 ## Stage C: Auth and uploads
 
@@ -58,20 +53,21 @@ Build the steps in order. Each step has a completion check; do not move on to th
 
 ## Stage E: Make it production-like
 
-- [x] **16. Dockerize the services.** Add multi-stage Dockerfiles for each service and shared migration/topic setup and include them in Compose. Verified fresh-volume startup on 2026-10-15: all migrations applied, Kafka topic setup completed, API health checks passed, and app containers ran as non-root. The separate test volumes were removed; existing project volumes were preserved and the normal stack was restored. The full Dockerized grading flow passed on 2026-10-08. The current key is accepted by Google's model-list endpoint and the grader receives its configured model and rubric, but new live grading is blocked by HTTP 503/timeouts from Gemini.
-- [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. GitHub Actions run #2 passed the full test suite, including outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid PDF failure.
-- [x] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, migration, and tests. Workflow at `.github/workflows/ci.yml` passed on `main` in [run #3](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38771554805). The first run found and exposed a build-order issue; the workflow now builds workspace declarations before type-checking dependent services.
+- [x] **16. Dockerize the services.** Add multi-stage Dockerfiles for each service and shared migration/topic setup and include them in Compose. Verified fresh-volume startup: migrations applied, Kafka topic setup completed, APIs became healthy, and app containers ran as non-root. Verified the normal Compose stack and complete live grading flow on 2026-10-16.
+- [x] **17. Tests.** Focus on the outbox transaction, idempotent grader, and JWT validation. **Done when:** `npm test` passes. The full local test script and CI passed, including outbox rollback, access-token validation, duplicate grading, bounded retries, and invalid-PDF failure.
+- [x] **18. CI.** Add a GitHub Actions workflow for install, type-check, build, migration, and tests. Workflow at `.github/workflows/ci.yml` passed on `main` in [run #6](https://github.com/Rakesh060404/AI-Grader-System/actions/runs/38777300134). The first run found and exposed a build-order issue; the workflow now builds workspace declarations before type-checking dependent services.
 - [x] **19. Documentation.** Complete the README with a Mermaid architecture diagram, setup instructions, API list, design decisions (outbox, Kafka, presigned uploads), and known limitations. Add the demo and interview notes. **Done when:** another developer can run the project from the README alone.
 - [ ] **20. Demo and placement material.** Record a 1–2 minute demo, write resume bullets, and prepare interview answers on outbox, idempotency, and presigned uploads. A recording outline, resume bullet drafts, and interview notes are ready in `docs/DEMO.md`. **Remaining:** record the demo and tailor resume bullets with the user's actual experience and measured results.
 
 ## Next actions
 
-1. Retry live grading when Gemini generation is responsive; the current
-   `gemini-3.8-flash` request returned HTTP 503 and timed out, despite the key
-   being accepted by the model-list endpoint.
-2. Preserve the local `.env` model and generic rubric settings; replace the
-   sample rubric with the course rubric before grading real submissions.
-3. Record the short demo using de-identified sample data once grading succeeds.
+1. Record the 1–2 minute demo using de-identified samples; the live flow has
+   now been verified with two samples.
+2. Replace the generic sample rubric with the course rubric before grading
+   real submissions, and confirm the configured Gemini model/quota remain
+   available.
+3. Tailor the resume bullets with the user's actual contributions and measured
+   project impact.
 
 ## If time runs short
 
